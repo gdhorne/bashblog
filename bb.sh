@@ -48,7 +48,7 @@ global_variables() {
     global_feedburner=""
 
     # Change this to your username if you want to use twitter for comments
-    global_twitter_username=""
+    global_twitter_username="dsbcco"
     # Set this to false for a Twitter button with share count. The cookieless version
     # is just a link.
     global_twitter_cookieless="true"
@@ -343,16 +343,28 @@ twitter_card() {
 twitter() {
     [[ -z $global_twitter_username ]] && return
 
+    url=$1
+    short_url=$url
+    
+    if [[ ! -z $twitter_api_token ]]; then
+        short_url=`curl -s -X GET "https://api-ssl.bitly.com/v3/user/link_lookup?access_token=$twitter_api_token&url=$url"`
+        short_url=`echo $short_url | jq 'if .data[][].link != null then .data[][].link else "" end'`
+        if [[ -z $short_url ]]; then
+            short_url=`curl -s -X GET "https://api-ssl.bitly.com/v3/shorten?access_token=$twitter_api_token&longUrl=$url&format=txt"`
+        fi
+        short_url=`echo $short_url | sed 's/\"//g'`
+    fi
+
     if [[ -z $global_disqus_username ]]; then
         if [[ $global_twitter_cookieless == true ]]; then 
             id=$RANDOM
 
             search_engine="https://twitter.com/search?q="
 
-            echo "<p id='twitter'><a href='http://twitter.com/intent/tweet?url=$1&text=$template_twitter_comment&via=$global_twitter_username'>$template_comments $template_twitter_button</a> "
-            echo "<a href='$search_engine""$1'><span id='count-$id'></span></a>&nbsp;</p>"
+            echo "<p id='twitter'><a href='http://twitter.com/intent/tweet?url=$short_url&text=$template_twitter_comment&via=$global_twitter_username'>$template_comments $template_twitter_button</a> "
+            echo "<a href='$search_engine""$url'><span id='count-$id'></span></a>&nbsp;</p>"
             # Get current tweet count
-            echo "<script type=\"text/javascript\">\$.ajax({type: \"GET\", url: \"https://cdn.api.twitter.com/1/urls/count.json?url=$1\",
+            echo "<script type=\"text/javascript\">\$.ajax({type: \"GET\", url: \"https://cdn.api.twitter.com/1/urls/count.json?url=$url\",
             dataType: \"jsonp\", success: function(data){ \$(\"#count-$id\").html(\"(\" + data.count + \")\"); }}); </script>"
             return;
         else 
@@ -362,7 +374,7 @@ twitter() {
         echo "<p id='twitter'><a href=\"$1#disqus_thread\">$template_comments</a> &nbsp;"
     fi  
 
-    echo "<a href=\"https://twitter.com/share\" class=\"twitter-share-button\" data-text=\"$template_twitter_comment\" data-url=\"$1\""
+    echo "<a href=\"https://twitter.com/share\" class=\"twitter-share-button\" data-text=\"$template_twitter_comment\" data-url=\"$url\""
     echo " data-via=\"$global_twitter_username\""
     echo ">$template_twitter_button</a>	<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=\"//platform.twitter.com/widgets.js\";fjs.parentNode.insertBefore(js,fjs);}}(document,\"script\",\"twitter-wjs\");</script>"
     echo "</p>"
